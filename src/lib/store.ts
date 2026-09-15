@@ -1,15 +1,23 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { ButtonSkin, FavTile, MediaKind, MediaPost, SourceId } from "@/lib/media/types";
+import type { ButtonSkin, FavTile, MediaKind, MediaPost, SortOrder, SourceId } from "@/lib/media/types";
 
 export type ViewId =
   | "feed"
   | "favorites"
+  | "favoritesAll"
+  | "favoritesAi"
+  | "favoritesSound"
   | "exclusions"
   | "authors"
   | "tags"
   | "settings"
   | "grid";
+
+export type FavGridKind = "authors" | "tags";
+
+/** "gallery" is the app as it exists today; "library" is an empty placeholder second mode — same chrome, no wiring behind it yet. */
+export type AppMode = "gallery" | "library";
 
 export type AppState = {
   hydrated: boolean;
@@ -23,16 +31,32 @@ export type AppState = {
   downloadFolderName: string;
   sources: Record<SourceId, boolean>;
   searchDraft: string;
+  searchChips: string[];
   r34ApiKey: string;
   r34UserId: string;
   danbooruLogin: string;
   danbooruApiKey: string;
+  danbooruCookie: string;
+  danbooruCookieFileName: string;
   likes: MediaPost[];
   disliked: string[];
   exclusions: string[];
   favoriteAuthors: FavTile[];
   favoriteTags: FavTile[];
   buttonSkins: Record<string, ButtonSkin>;
+  favGridColumns: Record<FavGridKind, number>;
+  sortOrder: SortOrder;
+  soundsFolderName: string;
+  likeSoundEnabled: boolean;
+  likeSoundCount: number;
+  aiFolderName: string;
+  aiFileCount: number;
+  pixivCookie: string;
+  civitaiCookie: string;
+  civitaiCookieFileName: string;
+  soundVideos: MediaPost[];
+  headphonesOn: boolean;
+  appMode: AppMode;
   setHydrated: (v: boolean) => void;
   confirmAge: () => void;
   setSidebarOpen: (v: boolean) => void;
@@ -40,14 +64,17 @@ export type AppState = {
   setTagsOpen: (v: boolean) => void;
   setSmartMode: (v: boolean) => void;
   setMediaKind: (v: MediaKind) => void;
-  toggleMediaKind: () => void;
   setEditChrome: (v: boolean) => void;
   setSaveInAuthorFolders: (v: boolean) => void;
   setDownloadFolderName: (v: string) => void;
   setSource: (id: SourceId, on: boolean) => void;
   setSearchDraft: (v: string) => void;
+  setSearchChips: (chips: string[]) => void;
+  addSearchChip: (tag: string) => void;
   setR34: (apiKey: string, userId: string) => void;
   setDanbooru: (login: string, apiKey: string) => void;
+  setDanbooruCookie: (v: string) => void;
+  setDanbooruCookieFileName: (v: string) => void;
   likePost: (post: MediaPost) => void;
   unlikePost: (key: string) => void;
   dislikePost: (key: string) => void;
@@ -58,6 +85,26 @@ export type AppState = {
   removeAuthor: (id: string) => void;
   removeTag: (id: string) => void;
   setButtonSkin: (id: string, skin: ButtonSkin) => void;
+  setFavGridColumns: (kind: FavGridKind, columns: number) => void;
+  setSortOrder: (order: SortOrder) => void;
+  setSoundsFolderName: (v: string) => void;
+  setLikeSoundEnabled: (v: boolean) => void;
+  setLikeSoundCount: (n: number) => void;
+  setAiFolderName: (v: string) => void;
+  setAiFileCount: (n: number) => void;
+  setPixivCookie: (v: string) => void;
+  setCivitaiCookie: (v: string) => void;
+  setCivitaiCookieFileName: (v: string) => void;
+  addSoundVideo: (post: MediaPost) => void;
+  removeSoundVideo: (key: string) => void;
+  setHeadphonesOn: (v: boolean) => void;
+  setAppMode: (v: AppMode) => void;
+  pinHash: string;
+  pinSetupDismissed: boolean;
+  pinUnlocked: boolean;
+  setPinHash: (v: string) => void;
+  setPinSetupDismissed: (v: boolean) => void;
+  setPinUnlocked: (v: boolean) => void;
 };
 
 const persistKeys: Array<keyof AppState> = [
@@ -73,12 +120,26 @@ const persistKeys: Array<keyof AppState> = [
   "r34UserId",
   "danbooruLogin",
   "danbooruApiKey",
+  "danbooruCookie",
+  "danbooruCookieFileName",
   "likes",
   "disliked",
   "exclusions",
   "favoriteAuthors",
   "favoriteTags",
   "buttonSkins",
+  "favGridColumns",
+  "sortOrder",
+  "soundsFolderName",
+  "likeSoundEnabled",
+  "aiFolderName",
+  "pixivCookie",
+  "civitaiCookie",
+  "civitaiCookieFileName",
+  "soundVideos",
+  "pinHash",
+  "pinSetupDismissed",
+  "appMode",
 ];
 
 export const useAppStore = create<AppState>()(
@@ -95,16 +156,35 @@ export const useAppStore = create<AppState>()(
       downloadFolderName: "",
       sources: { danbooru: true, rule34: false },
       searchDraft: "",
+      searchChips: [],
       r34ApiKey: "",
       r34UserId: "",
       danbooruLogin: "",
       danbooruApiKey: "",
+      danbooruCookie: "",
+      danbooruCookieFileName: "",
       likes: [],
       disliked: [],
       exclusions: [],
       favoriteAuthors: [],
       favoriteTags: [],
       buttonSkins: {},
+      favGridColumns: { authors: 1, tags: 1 },
+      sortOrder: "new",
+      soundsFolderName: "",
+      likeSoundEnabled: true,
+      likeSoundCount: 0,
+      aiFolderName: "",
+      aiFileCount: 0,
+      pixivCookie: "",
+      civitaiCookie: "",
+      civitaiCookieFileName: "",
+      soundVideos: [],
+      headphonesOn: false,
+      appMode: "gallery",
+      pinHash: "",
+      pinSetupDismissed: false,
+      pinUnlocked: false,
       setHydrated: (v) => set({ hydrated: v }),
       confirmAge: () => set({ ageOk: true }),
       setSidebarOpen: (v) => set({ sidebarOpen: v }),
@@ -112,17 +192,23 @@ export const useAppStore = create<AppState>()(
       setTagsOpen: (v) => set({ tagsOpen: v }),
       setSmartMode: (v) => set({ smartMode: v }),
       setMediaKind: (v) => set({ mediaKind: v }),
-      toggleMediaKind: () =>
-        set({ mediaKind: get().mediaKind === "motion" ? "still" : "motion" }),
       setEditChrome: (v) => set({ editChrome: v }),
       setSaveInAuthorFolders: (v) => set({ saveInAuthorFolders: v }),
       setDownloadFolderName: (v) => set({ downloadFolderName: v }),
       setSource: (id, on) =>
         set({ sources: { ...get().sources, [id]: on } }),
       setSearchDraft: (v) => set({ searchDraft: v }),
+      setSearchChips: (chips) => set({ searchChips: chips }),
+      addSearchChip: (tag) => {
+        const t = tag.toLowerCase().trim();
+        if (!t || get().searchChips.includes(t)) return;
+        set({ searchChips: [...get().searchChips, t] });
+      },
       setR34: (apiKey, userId) => set({ r34ApiKey: apiKey, r34UserId: userId }),
       setDanbooru: (login, apiKey) =>
         set({ danbooruLogin: login, danbooruApiKey: apiKey }),
+      setDanbooruCookie: (v) => set({ danbooruCookie: v }),
+      setDanbooruCookieFileName: (v) => set({ danbooruCookieFileName: v }),
       likePost: (post) => {
         const likes = get().likes.filter((p) => p.key !== post.key);
         set({
@@ -157,6 +243,28 @@ export const useAppStore = create<AppState>()(
         set({ favoriteTags: get().favoriteTags.filter((t) => t.id !== id) }),
       setButtonSkin: (id, skin) =>
         set({ buttonSkins: { ...get().buttonSkins, [id]: skin } }),
+      setFavGridColumns: (kind, columns) =>
+        set({ favGridColumns: { ...get().favGridColumns, [kind]: columns } }),
+      setSortOrder: (order) => set({ sortOrder: order }),
+      setSoundsFolderName: (v) => set({ soundsFolderName: v }),
+      setLikeSoundEnabled: (v) => set({ likeSoundEnabled: v }),
+      setLikeSoundCount: (n) => set({ likeSoundCount: n }),
+      setAiFolderName: (v) => set({ aiFolderName: v }),
+      setAiFileCount: (n) => set({ aiFileCount: n }),
+      setPixivCookie: (v) => set({ pixivCookie: v }),
+      setCivitaiCookie: (v) => set({ civitaiCookie: v }),
+      setCivitaiCookieFileName: (v) => set({ civitaiCookieFileName: v }),
+      addSoundVideo: (post) => {
+        if (get().soundVideos.some((p) => p.key === post.key)) return;
+        set({ soundVideos: [post, ...get().soundVideos] });
+      },
+      removeSoundVideo: (key) =>
+        set({ soundVideos: get().soundVideos.filter((p) => p.key !== key) }),
+      setHeadphonesOn: (v) => set({ headphonesOn: v }),
+      setAppMode: (v) => set({ appMode: v }),
+      setPinHash: (v) => set({ pinHash: v }),
+      setPinSetupDismissed: (v) => set({ pinSetupDismissed: v }),
+      setPinUnlocked: (v) => set({ pinUnlocked: v }),
     }),
     {
       name: "kadr-store",

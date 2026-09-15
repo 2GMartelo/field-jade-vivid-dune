@@ -3,7 +3,9 @@ import type { MediaPost } from "@/lib/media/types";
 
 const DB_NAME = "kadr-fs";
 const STORE = "handles";
-const KEY = "download-dir";
+const DOWNLOAD_KEY = "download-dir";
+export const SOUNDS_KEY = "sounds-dir";
+export const AI_FOLDER_KEY = "ai-dir";
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -16,23 +18,23 @@ function openDb(): Promise<IDBDatabase> {
   });
 }
 
-export async function saveDirHandle(handle: FileSystemDirectoryHandle) {
+async function saveHandle(key: string, handle: FileSystemDirectoryHandle) {
   const db = await openDb();
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE, "readwrite");
-    tx.objectStore(STORE).put(handle, KEY);
+    tx.objectStore(STORE).put(handle, key);
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
 }
 
-export async function loadDirHandle(): Promise<FileSystemDirectoryHandle | null> {
+async function loadHandle(key: string): Promise<FileSystemDirectoryHandle | null> {
   try {
     const db = await openDb();
     const handle = await new Promise<FileSystemDirectoryHandle | undefined>(
       (resolve, reject) => {
         const tx = db.transaction(STORE, "readonly");
-        const req = tx.objectStore(STORE).get(KEY);
+        const req = tx.objectStore(STORE).get(key);
         req.onsuccess = () => resolve(req.result as FileSystemDirectoryHandle | undefined);
         req.onerror = () => reject(req.error);
       },
@@ -43,17 +45,37 @@ export async function loadDirHandle(): Promise<FileSystemDirectoryHandle | null>
   }
 }
 
-export async function ensurePermission(handle: FileSystemDirectoryHandle) {
+export const saveDirHandle = (handle: FileSystemDirectoryHandle) => saveHandle(DOWNLOAD_KEY, handle);
+export const loadDirHandle = () => loadHandle(DOWNLOAD_KEY);
+export const saveSoundsDirHandle = (handle: FileSystemDirectoryHandle) => saveHandle(SOUNDS_KEY, handle);
+export const loadSoundsDirHandle = () => loadHandle(SOUNDS_KEY);
+export const saveAiDirHandle = (handle: FileSystemDirectoryHandle) => saveHandle(AI_FOLDER_KEY, handle);
+export const loadAiDirHandle = () => loadHandle(AI_FOLDER_KEY);
+
+/** Forgets every saved folder (download/sounds/AI) for a full app reset — clears the store, doesn't delete the whole IndexedDB database (avoids blocking on any connection a caller above forgot to close). */
+export async function clearAllHandles() {
+  const db = await openDb();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(STORE, "readwrite");
+    tx.objectStore(STORE).clear();
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+  db.close();
+}
+
+export async function ensurePermission(
+  handle: FileSystemDirectoryHandle,
+  mode: "read" | "readwrite" = "readwrite",
+) {
   const h = handle as FileSystemDirectoryHandle & {
-    queryPermission?: (d: { mode: "readwrite" }) => Promise<PermissionState>;
-    requestPermission?: (d: { mode: "readwrite" }) => Promise<PermissionState>;
+    queryPermission?: (d: { mode: "read" | "readwrite" }) => Promise<PermissionState>;
+    requestPermission?: (d: { mode: "read" | "readwrite" }) => Promise<PermissionState>;
   };
   try {
-    const query = h.queryPermission ? await h.queryPermission({ mode: "readwrite" }) : "granted";
+    const query = h.queryPermission ? await h.queryPermission({ mode }) : "granted";
     if (query === "granted") return true;
-    const next = h.requestPermission
-      ? await h.requestPermission({ mode: "readwrite" })
-      : "granted";
+    const next = h.requestPermission ? await h.requestPermission({ mode }) : "granted";
     return next === "granted";
   } catch {
     return false;
@@ -99,12 +121,12 @@ export function downloadBlob(blob: Blob, name: string) {
   URL.revokeObjectURL(url);
 }
 
-export async function pickDirectory() {
+export async function pickDirectory(mode: "read" | "readwrite" = "readwrite") {
   const w = window as Window & {
     showDirectoryPicker?: (opts?: { mode?: "read" | "readwrite" }) => Promise<FileSystemDirectoryHandle>;
   };
   if (!w.showDirectoryPicker) {
     throw new Error("folder-unsupported");
   }
-  return w.showDirectoryPicker({ mode: "readwrite" });
+  return w.showDirectoryPicker({ mode });
 }

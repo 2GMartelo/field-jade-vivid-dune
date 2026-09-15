@@ -1,9 +1,11 @@
-const HOST_SUFFIXES = [".donmai.us", ".rule34.xxx"];
+const HOST_SUFFIXES = [".donmai.us", ".rule34.xxx", ".pximg.net", ".civitai.com"];
 const HOST_EXACT = new Set([
   "danbooru.donmai.us",
   "cdn.donmai.us",
   "rule34.xxx",
   "api.rule34.xxx",
+  "www.pixiv.net",
+  "civitai.com",
 ]);
 
 function isPrivateHostname(hostname: string) {

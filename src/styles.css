@@ -13,6 +13,9 @@
   --color-primary: #efece6;
   --color-primary-foreground: #0c0c0d;
   --color-like: #c45c5c;
+  --color-pink: #e0609e;
+  --color-gallery: #8b5cf6;
+  --color-library: #d97a3a;
   --color-ring: color-mix(in oklab, var(--color-fg) 35%, transparent);
   --font-sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
   --font-display: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;

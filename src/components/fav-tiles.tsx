@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Maximize2, Pencil, Plus, Trash2 } from "lucide-react";
 import { formatTag } from "@/lib/utils";
 import { fileToSkinDataUrl } from "@/lib/image-file";
 import type { FavTile } from "@/lib/media/types";
-import { useAppStore } from "@/lib/store";
+import { useAppStore, type FavGridKind } from "@/lib/store";
 import { useFeed } from "@/components/feed-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,12 +14,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-export function FavTiles({ kind }: { kind: "authors" | "tags" }) {
+const MIN_COLUMNS = 1;
+const MAX_COLUMNS = 4;
+
+export function FavTiles({ kind }: { kind: FavGridKind }) {
   const { runSearch } = useFeed();
-  const editChrome = useAppStore((s) => s.editChrome);
   const tiles = useAppStore((s) => (kind === "authors" ? s.favoriteAuthors : s.favoriteTags));
   const upsert = useAppStore((s) => (kind === "authors" ? s.upsertAuthor : s.upsertTag));
   const remove = useAppStore((s) => (kind === "authors" ? s.removeAuthor : s.removeTag));
+  const columns = useAppStore((s) => s.favGridColumns[kind]);
+  const setFavGridColumns = useAppStore((s) => s.setFavGridColumns);
   const [editing, setEditing] = useState<FavTile | null>(null);
   const [creating, setCreating] = useState(false);
   const [draftTag, setDraftTag] = useState("");
@@ -56,26 +60,60 @@ export function FavTiles({ kind }: { kind: "authors" | "tags" }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex items-center justify-between px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
         <h2 className="text-sm font-medium">
           {kind === "authors" ? "Любимые авторы" : "Любимые теги"}
         </h2>
-        <Button variant="outline" size="sm" onClick={openCreate}>
-          <Plus />
-          добавить
-        </Button>
+        <div className="flex items-center gap-2">
+          <div
+            className="flex items-center gap-1 rounded-md border border-border px-1"
+            title="Кнопок в ряд (меньше = шире каждая)"
+          >
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8"
+              disabled={columns <= MIN_COLUMNS}
+              onClick={() => setFavGridColumns(kind, Math.max(MIN_COLUMNS, columns - 1))}
+              aria-label="Меньше в ряд (кнопки шире)"
+            >
+              −
+            </Button>
+            <span className="flex items-center gap-1 text-xs text-muted">
+              <Maximize2 className="size-3" />
+              {columns}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8"
+              disabled={columns >= MAX_COLUMNS}
+              onClick={() => setFavGridColumns(kind, Math.min(MAX_COLUMNS, columns + 1))}
+              aria-label="Больше в ряд (кнопки уже)"
+            >
+              +
+            </Button>
+          </div>
+          <Button variant="outline" size="sm" onClick={openCreate}>
+            <Plus />
+            добавить
+          </Button>
+        </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-4">
         {tiles.length === 0 ? (
           <p className="px-1 text-sm text-muted">Пока пусто. Добавьте из панели тегов.</p>
         ) : (
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <div
+            className="grid gap-2"
+            style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+          >
             {tiles.map((tile) => (
               <div key={tile.id} className="relative">
                 <button
                   type="button"
-                  className="relative flex h-20 w-full items-center justify-center overflow-hidden rounded-md px-4 text-sm font-medium shadow-[var(--shadow-border)]"
-                  onClick={() => (editChrome ? openEdit(tile) : runSearch(tile.tag, tile.label))}
+                  className="relative flex aspect-[2/3] w-full items-center justify-center overflow-hidden rounded-md px-4 text-sm font-medium shadow-[var(--shadow-border)]"
+                  onClick={() => runSearch(tile.tag, tile.label)}
                 >
                   {tile.image ? (
                     <span

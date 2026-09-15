@@ -3,3 +3,6 @@ node_modules/
 .github_repo
 .env
 .env.*
+
+# Personal content, not source — local like-sound clips the user dropped in.
+sounds like/

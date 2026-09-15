@@ -54,7 +54,7 @@ const NOISE = new Set([
 function weightTags(posts: MediaPost[], extra: string[]) {
   const counts = new Map<string, number>();
   for (const post of posts) {
-    for (const tag of [...post.tags, ...post.artists, ...post.characters]) {
+    for (const tag of [...post.tags, ...post.artists, ...post.characters, ...post.copyright]) {
       const t = tag.toLowerCase();
       if (!t || NOISE.has(t) || isBlockedTag(t)) continue;
       counts.set(t, (counts.get(t) ?? 0) + 1);

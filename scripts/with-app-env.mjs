@@ -111,7 +111,17 @@ function main(argv) {
     process.exit(2);
   }
   const env = mergeAppEnv(readAppEnv(projectRoot()), process.env);
-  const child = spawn(command, args, { stdio: "inherit", env });
+  // On Windows, node_modules/.bin shims are .cmd files. Node refuses to
+  // spawn .cmd/.bat directly (EINVAL, since CVE-2024-27980) unless run
+  // through a shell, and plain spawn() without one can't resolve `command`
+  // at all (ENOENT). `args` here always comes from this repo's own
+  // package.json scripts, never external/user input, so shell quoting is
+  // not a security concern in this context.
+  const child = spawn(command, args, {
+    stdio: "inherit",
+    env,
+    shell: process.platform === "win32",
+  });
   // The dev server is long-running and is stopped by signalling this wrapper.
   for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
     process.on(signal, () => child.kill(signal));

@@ -12,6 +12,7 @@ const buttonVariants = cva(
         ghost: "bg-transparent text-fg hover:bg-fg/6",
         outline: "bg-transparent text-fg shadow-[var(--shadow-border)] hover:bg-fg/6",
         like: "bg-transparent text-like hover:bg-like/12",
+        pink: "bg-transparent text-pink hover:bg-pink/12",
         danger: "bg-transparent text-muted hover:bg-fg/6 hover:text-fg",
         quiet: "bg-surface text-fg shadow-[var(--shadow-border)] hover:bg-raised",
       },

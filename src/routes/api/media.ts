@@ -1,11 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { isAllowedMediaUrl } from "@/lib/media/hosts";
+import { proxyAwareFetch } from "@/lib/media/http.server";
 
-const UA = "Kadr/1.0 (personal gallery; +https://grok.com)";
+// A real browser UA for every proxied media fetch — this is a personal
+// gallery app, not a bot, and several hosts (Pixiv's image CDN checks this
+// specifically, not just Referer) are pickier about a plain custom UA.
+const UA =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
 function refererFor(url: URL) {
   if (url.hostname.endsWith("donmai.us")) return "https://danbooru.donmai.us/";
   if (url.hostname.endsWith("rule34.xxx")) return "https://rule34.xxx/";
+  if (url.hostname.endsWith("pximg.net") || url.hostname === "www.pixiv.net") {
+    return "https://www.pixiv.net/";
+  }
   return undefined;
 }
 
@@ -30,7 +38,7 @@ export const Route = createFileRoute("/api/media")({
         if (range) headers.Range = range;
         let upstream: Response;
         try {
-          upstream = await fetch(target, {
+          upstream = await proxyAwareFetch(target.toString(), {
             headers,
             signal: AbortSignal.timeout(25000),
             redirect: "follow",

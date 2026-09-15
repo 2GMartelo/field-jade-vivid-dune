@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { fileToSkinDataUrl } from "@/lib/image-file";
 import { useAppStore } from "@/lib/store";
@@ -21,7 +22,7 @@ type ChromeButtonProps = {
   active?: boolean;
   disabled?: boolean;
   onClick?: () => void;
-  variant?: "ghost" | "like" | "danger" | "quiet" | "outline";
+  variant?: "ghost" | "like" | "pink" | "danger" | "quiet" | "outline";
   size?: "default" | "sm" | "lg" | "icon" | "tile";
 };
 
@@ -47,14 +48,10 @@ export function ChromeButton({
   const shownLabel = skin?.label ?? defaultLabel;
   const shownImage = skin?.image;
 
-  function handleClick() {
-    if (editChrome) {
-      setLabel(skin?.label ?? defaultLabel);
-      setImage(skin?.image ?? "");
-      setOpen(true);
-      return;
-    }
-    onClick?.();
+  function openEditor() {
+    setLabel(skin?.label ?? defaultLabel);
+    setImage(skin?.image ?? "");
+    setOpen(true);
   }
 
   async function onFile(file: File | undefined) {
@@ -70,8 +67,8 @@ export function ChromeButton({
         variant={variant}
         size={size}
         disabled={disabled}
-        title={editChrome ? "Изменить кнопку" : title ?? shownLabel}
-        onClick={handleClick}
+        title={title ?? shownLabel}
+        onClick={onClick}
         className={cn(
           "relative overflow-hidden",
           shownImage && "text-fg",
@@ -93,6 +90,27 @@ export function ChromeButton({
             {shownLabel}
           </span>
         </span>
+        {editChrome ? (
+          <span
+            role="button"
+            tabIndex={0}
+            className="absolute right-0.5 top-0.5 z-20 flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[var(--shadow-border)]"
+            title="Изменить кнопку"
+            onClick={(e) => {
+              e.stopPropagation();
+              openEditor();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.stopPropagation();
+                e.preventDefault();
+                openEditor();
+              }
+            }}
+          >
+            <Pencil className="size-3" />
+          </span>
+        ) : null}
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
